@@ -1,0 +1,29 @@
+name: Validate artifacts
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check schema JSON and local Markdown links
+        run: |
+          python3 -m json.tool work-packet-schema.json > /dev/null
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          for document in Path('.').glob('*.md'):
+              for link in re.findall(r'\]\(([^)]+)\)', document.read_text()):
+                  if '://' in link or link.startswith('#'):
+                      continue
+                  target = document.parent / link.split('#')[0]
+                  assert target.is_file(), (document, link)
+          print('Schema JSON and local Markdown links passed.')
+          PY

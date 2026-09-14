@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Autonomous fleet work packet",
+  "description": "Proposed reference schema for a bounded task. Validation checks structure and cannot authorize execution. Verify approval, identity, live state, and cumulative usage separately.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "task_id", "packet_id", "objective", "role_assignments",
+    "inputs", "scope", "acceptance_criteria", "budget", "authorization", "recovery"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "task_id": {"$ref": "#/$defs/identifier"},
+    "packet_id": {"$ref": "#/$defs/identifier"},
+    "objective": {"$ref": "#/$defs/text"},
+    "role_assignments": {
+      "type": "object",
+      "description": "Assign identities to the roles in role-profiles.yaml. Enforce required separation of duties outside this schema.",
+      "additionalProperties": false,
+      "required": ["owner", "planner", "executor", "reviewer", "operator"],
+      "properties": {
+        "owner": {"$ref": "#/$defs/identifier"},
+        "planner": {"$ref": "#/$defs/identifier"},
+        "executor": {"$ref": "#/$defs/identifier"},
+        "reviewer": {"$ref": "#/$defs/identifier"},
+        "operator": {"$ref": "#/$defs/identifier"}
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_ref", "version", "purpose", "estimated_tokens"],
+        "properties": {
+          "source_ref": {"$ref": "#/$defs/text"},
+          "version": {"$ref": "#/$defs/text"},
+          "purpose": {"$ref": "#/$defs/text"},
+          "estimated_tokens": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read_resources", "write_resources", "permitted_actions"],
+      "properties": {
+        "read_resources": {"$ref": "#/$defs/textList"},
+        "write_resources": {
+          "$ref": "#/$defs/textList",
+          "description": "List exact destinations for proposed writes. An empty list permits no external writes. A listed destination still requires verified approval."
+        },
+        "permitted_actions": {"$ref": "#/$defs/nonemptyTextList"}
+      }
+    },
+    "acceptance_criteria": {"$ref": "#/$defs/nonemptyTextList"},
+    "budget": {
+      "type": "object",
+      "description": "Fixed limits for the entire task. Keep actual usage, reservations, and recovery costs in the cumulative ledger under budget_id.",
+      "additionalProperties": false,
+      "required": [
+        "budget_id", "currency", "max_cost_minor_units", "max_model_calls",
+        "max_total_tokens", "max_context_tokens_per_call"
+      ],
+      "properties": {
+        "budget_id": {"$ref": "#/$defs/identifier"},
+        "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+        "max_cost_minor_units": {
+          "type": "integer", "minimum": 0,
+          "description": "Total permitted cost in the currency's minor units, such as cents for USD. Include every role and recovery attempt."
+        },
+        "max_model_calls": {"type": "integer", "minimum": 0},
+        "max_total_tokens": {
+          "type": "integer", "minimum": 0,
+          "description": "Cumulative input and output token limit across all model calls, including repeated context."
+        },
+        "max_context_tokens_per_call": {
+          "type": "integer", "minimum": 0,
+          "description": "Maximum assembled input tokens for one model call, including instructions and message history."
+        }
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_approver_id", "write_approval_ref"],
+      "properties": {
+        "required_approver_id": {"$ref": "#/$defs/identifier"},
+        "write_approval_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to a separately verified approval record, or null while pending. Allocate the reference before freezing packet bytes. The record must bind their digest to the exact proposed change, destination, expiry, and revocation state."
+        }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_attempts", "permitted_actions", "checkpoint_ref"],
+      "properties": {
+        "max_attempts": {"type": "integer", "minimum": 0},
+        "permitted_actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["inspect_state", "run_read_only_check", "resume_from_verified_checkpoint"]
+          }
+        },
+        "checkpoint_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the task's checkpoint record, or null when no checkpoint is available. Verify checkpoint content and external state before resuming."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "text": {"type": "string", "minLength": 1, "pattern": "\\S"},
+    "textList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/text"}
+    },
+    "nonemptyTextList": {
+      "$ref": "#/$defs/textList",
+      "minItems": 1
+    }
+  }
+}

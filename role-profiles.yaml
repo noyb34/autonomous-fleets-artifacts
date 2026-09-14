@@ -1,0 +1,47 @@
+# Proposed reference policy. Configure actual permissions separately.
+version: "1.0"
+status: proposed_reference
+roles:
+  owner:
+    purpose: Defines the outcome, approves consequential writes, and accepts the result.
+    decisions:
+      - Set scope and acceptance criteria.
+      - Approve the exact packet and proposed external change.
+      - Decide whether a blocked task needs an amendment.
+    limits:
+      - Use an identity different from the executor for write approval.
+      - Record budget changes without erasing earlier spending.
+  planner:
+    purpose: Converts a request into a bounded work packet.
+    decisions:
+      - Select versioned inputs and explain their purpose.
+      - Propose permitted actions, costs, and recovery limits.
+    limits:
+      - Stop at a reviewable proposal until required approval exists.
+      - Preserve task, packet, and budget identities across delegation.
+  executor:
+    purpose: Performs permitted work and records its result and cost.
+    decisions:
+      - Prepare the proposed change for review.
+      - Execute within verified approval and remaining budget.
+    limits:
+      - Verify approval and destination preconditions before each write.
+      - Record a blocked result when authority or outcome is uncertain.
+  reviewer:
+    purpose: Checks the result against the packet's acceptance criteria.
+    decisions:
+      - Record evidence and actionable findings.
+      - Recommend acceptance or further work to the owner.
+    limits:
+      - Use an identity different from the executor for consequential work.
+      - Review approval does not replace the owner's write approval.
+  operator:
+    purpose: Diagnoses blocked tasks and performs permitted recovery.
+    decisions:
+      - Inspect the ledger, last confirmed action, and external state.
+      - Resume from a verified checkpoint within the recorded attempt limit.
+    limits:
+      - Confirm that no other executor remains active before resuming.
+      - Reconcile an uncertain write before considering another attempt.
+      - Preserve the original task identity and cumulative budget.
+      - Stop when recovery needs changed scope, approval, or spending limits.
